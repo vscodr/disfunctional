@@ -1,0 +1,111 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "serverName": {
+            "type": "string",
+            "metadata": {
+                "description": "description"
+            }
+        },
+        "dbCount": {
+            "type": "int",
+            "metadata": {
+                "description": "description"
+            }
+        },
+        "startIP": {
+            "type": "string",
+            "metadata": {
+                "description": "description"
+            }
+        },
+        "endIP": {
+            "type": "string",
+            "metadata": {
+                "description": "description"
+            }
+        }
+    },
+    "functions": [
+        {
+            "namespace": "sqlspace",
+            "members": 
+            {
+                "databaseName": {
+                    "parameters": [
+                        {
+                            "name": "namePrefix",
+                            "type": "string"
+                        },                                                {
+                            "name": "index",
+                            "type": "int"
+                        }
+                    ],
+                    "output": {
+                        "value": "[concat(parameters('namePrefix'), parameters('index'))]",
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    ],
+    "variables": {
+        "dbPrefix":"testdb",
+        "adminName":"Homer",
+        "adminPassword":"P@55w0rd!"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('serverName'),'/', sqlspace.databaseName(variables('dbPrefix'),copyIndex()))]",
+            "type": "Microsoft.Sql/servers",
+            "apiVersion": "2015-05-01-preview",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "[parameters('serverName')]"
+            },
+            "properties": {
+                "administratorLogin": "[variables('adminName')]",
+                "administratorLoginPassword": "[variables('adminPassword')]"
+            },
+            "resources": [
+                {
+                    "type": "firewallRules",
+                    "apiVersion": "2015-05-01-preview",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', parameters('serverName'))]"
+                    ],
+                    "location": "[resourceGroup().location]",
+                    "name": "AllowAllWindowsAzureIps",
+                    "properties": {
+                        "startIpAddress": "[parameters('startIP')]",
+                        "endIpAddress": "[parameters('endIP')]"
+                    }
+                },
+                {
+                    "name": "[concat(parameters('serverName'),'/', sqlspace.databaseName(variables('dbPrefix'),copyIndex()))]",
+                    "type": "Microsoft.Sql/servers/databases",
+                    "apiVersion": "2014-04-01",
+                    "location": "[resourceGroup().location]",
+                    "tags": {
+                        "displayName": "[sqlspace.databaseName(variables('dbPrefix'),copyIndex())]"
+                    },
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', parameters('serverName'))]"
+                    ],
+                    "properties": {
+                        "collation": "SQL_Latin1_General_CP1_CI_AS",
+                        "edition": "Basic",
+                        "maxSizeBytes": "1073741824",
+                        "requestedServiceObjectiveName": "Basic"
+                    },
+                    "copy": {
+                        "name":"dbInstances",
+                        "count":"[parameters('dbCount')]"}
+                }
+                
+            ]
+        }
+    ],
+    "outputs": {}
+}
